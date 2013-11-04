@@ -52,6 +52,10 @@
 
 #define VND_PORT_NAME_MAXLEN    256
 
+/*[NK] @Marvell - Driver FIX
+   ioctl command to release the read thread before driver close */
+#define MBTCHAR_IOCTL_RELEASE _IO  ('M',1)
+
 /******************************************************************************
 **  Local type definitions
 ******************************************************************************/
@@ -266,16 +270,13 @@ int userial_vendor_open(tUSERIAL_CFG *p_cfg)
 	}else if(!strcmp(vnd_userial.port_type,"sdio")){
 	
 		ALOGI("userial vendor open: opening %s", vnd_userial.port_name);
-		if ((vnd_userial.fd = open(vnd_userial.port_name, O_RDWR | O_NOCTTY)) == -1)
+		if ((vnd_userial.fd = open(vnd_userial.port_name, O_RDWR)) < 0)
 		{
 			ALOGE("userial vendor open: unable to open %s", vnd_userial.port_name);
 			return -1;
 		}
 	}
 
-#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-    userial_ioctl_init_bt_wake(vnd_userial.fd);
-#endif
 
     ALOGI("device fd = %d open", vnd_userial.fd);
 
@@ -293,15 +294,13 @@ int userial_vendor_open(tUSERIAL_CFG *p_cfg)
 *******************************************************************************/
 void userial_vendor_close(void)
 {
+	int local_st;
     int result;
 
-    if (vnd_userial.fd == -1)
+    if (vnd_userial.fd<=0)
         return;
 
-#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-    /* de-assert bt_wake BEFORE closing port */
-    ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_DEASSERT, NULL);
-#endif
+	ioctl(vnd_userial.fd,MBTCHAR_IOCTL_RELEASE,&local_st);
 
     ALOGI("device fd = %d close", vnd_userial.fd);
 
@@ -342,27 +341,6 @@ void userial_vendor_set_baud(uint8_t userial_baud)
 *******************************************************************************/
 void userial_vendor_ioctl(userial_vendor_ioctl_op_t op, void *p_data)
 {
-    switch(op)
-    {
-#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-        case USERIAL_OP_ASSERT_BT_WAKE:
-            VNDUSERIALDBG("## userial_vendor_ioctl: Asserting BT_Wake ##");
-            ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_ASSERT, NULL);
-            break;
-
-        case USERIAL_OP_DEASSERT_BT_WAKE:
-            VNDUSERIALDBG("## userial_vendor_ioctl: De-asserting BT_Wake ##");
-            ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_DEASSERT, NULL);
-            break;
-
-        case USERIAL_OP_GET_BT_WAKE_STATE:
-            ioctl(vnd_userial.fd, USERIAL_IOCTL_BT_WAKE_GET_ST, p_data);
-            break;
-#endif  //  (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-
-        default:
-            break;
-    }
 }
 
 /*******************************************************************************
@@ -386,6 +364,11 @@ int userial_set_porttype(char *p_conf_name, char *p_conf_value, int param)
     strcpy(vnd_userial.port_type, p_conf_value);
 
     return 0;
+}
+
+
+char* userial_vendor_portname(void){
+	return vnd_userial.port_name;
 }
 
 

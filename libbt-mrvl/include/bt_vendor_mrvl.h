@@ -37,9 +37,14 @@
 
 /* Device port name where Bluetooth controller attached */
 #ifndef BLUETOOTH_VENDOR_PORT
-#define BLUETOOTH_VENDOR_PORT      "/dev/mtb0"   
+#define BLUETOOTH_VENDOR_PORT      "/dev/mbtchar0"   
 #endif
 
 
+/******************************************************************************
+**  Extern variables and functions
+******************************************************************************/
+
+extern bt_vendor_callbacks_t *bt_vendor_cbacks;
 #endif /* BT_VENDOR_MRVL_H */
 

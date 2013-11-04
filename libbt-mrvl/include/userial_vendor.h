@@ -101,11 +101,6 @@ typedef struct
 } tUSERIAL_CFG;
 
 typedef enum {
-#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-    USERIAL_OP_ASSERT_BT_WAKE,
-    USERIAL_OP_DEASSERT_BT_WAKE,
-    USERIAL_OP_GET_BT_WAKE_STATE,
-#endif
     USERIAL_OP_NOP,
 } userial_vendor_ioctl_op_t;
 
@@ -171,6 +166,9 @@ void userial_vendor_set_baud(uint8_t userial_baud);
 **
 *******************************************************************************/
 void userial_vendor_ioctl(userial_vendor_ioctl_op_t op, void *p_data);
+
+char* userial_vendor_portname(void);
+
 
 #endif /* USERIAL_VENDOR_H */
 

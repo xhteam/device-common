@@ -39,6 +39,16 @@
 #include "marvell_wireless.h"
 #endif
 
+#ifndef BTVND_DBG
+#define BTVND_DBG FALSE
+#endif
+
+#if (BTVND_DBG == TRUE)
+#define BTVNDDBG(param, ...) {ALOGD(param, ## __VA_ARGS__);}
+#else
+#define BTVNDDBG(param, ...) {}
+#endif
+
 #define UPIO_BT_POWER_OFF 0
 #define UPIO_BT_POWER_ON 1
 
@@ -55,6 +65,9 @@
 #ifndef BLUETOOTH_DRIVER_MODULE_ARG
 #define BLUETOOTH_DRIVER_MODULE_ARG "bt_name=mbt fm_name=mfm fw_name=mrvl/sd8787_uapsta.bin"
 #endif
+int hw_lpm_enable(uint8_t turn_on);
+uint32_t hw_lpm_get_idle_timeout(void);
+int hw_lpm_set_wake_state(uint8_t wake_assert);
 
 
 /******************************************************************************
@@ -79,7 +92,7 @@ extern void vnd_load_conf(const char *p_path);
 ******************************************************************************/
 //bt_hci_transport_device_type bt_hci_transport_device;
 
-static bt_vendor_callbacks_t *bt_vendor_cbacks = NULL;
+bt_vendor_callbacks_t *bt_vendor_cbacks = NULL;
 uint8_t vnd_local_bd_addr[6]={0x11, 0x22, 0x33, 0x44, 0x55, 0xFF};
 
 /******************************************************************************
@@ -262,10 +275,6 @@ static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr)
         return -1;
     }
 
-	if(mrvl_bluetooth_driver_init()){
-		
-        ALOGE("init failed mrvl_bluetooth_driver_init!");
-	}
 
     userial_vendor_init();
 	
@@ -279,6 +288,7 @@ static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr)
     /* This is handed over from the stack */
     memcpy(vnd_local_bd_addr, local_bdaddr, 6);
 
+
     return 0;
 }
 
@@ -288,36 +298,37 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 {
     int retval = 0;
 
-    ALOGD("%s : bt-vendor : op for %d", __FUNCTION__, opcode);
+    BTVNDDBG("%s : bt-vendor : op for %d", __FUNCTION__, opcode);
 
     switch(opcode)
     {
         case BT_VND_OP_POWER_CTRL:
             {
-                ALOGD("mrvl ::BT_VND_OP_POWER_CTRL");
+                BTVNDDBG("mrvl ::BT_VND_OP_POWER_CTRL");
                 int *state = (int *) param;
 				if (*state == BT_VND_PWR_OFF){
-                    ALOGI("[//]mrvl UPIO_BT_POWER_OFF");
+                    BTVNDDBG("[//]mrvl UPIO_BT_POWER_OFF");
+					mrvl_bluetooth_driver_uninit();
 					upio_set_bluetooth_power(UPIO_BT_POWER_OFF);
 				}
                 else if (*state == BT_VND_PWR_ON){
-                    ALOGI("[//]mrvl UPIO_BT_POWER_ON");
+                    BTVNDDBG("[//]mrvl UPIO_BT_POWER_ON");
 					upio_set_bluetooth_power(UPIO_BT_POWER_ON);
+					mrvl_bluetooth_driver_init();
                 }
-                retval = 0;
             }
             break;
 
         case BT_VND_OP_FW_CFG:
             {
-				ALOGD("mrvl ::BT_VND_OP_FW_CFG");
+				BTVNDDBG("mrvl ::BT_VND_OP_FW_CFG");
 
                 if(bt_vendor_cbacks){
-                   ALOGI("mrvl ::Bluetooth Firmware download");
+                   BTVNDDBG("mrvl ::Bluetooth Firmware download");
                    bt_vendor_cbacks->fwcfg_cb(BT_VND_OP_RESULT_SUCCESS);
                 }
                 else{
-                   ALOGE("mrvl ::Error : mrvl Bluetooth Firmware download");
+                   BTVNDDBG("mrvl ::Error : mrvl Bluetooth Firmware download");
                    bt_vendor_cbacks->fwcfg_cb(BT_VND_OP_RESULT_FAIL);
                 }
             }
@@ -331,7 +342,7 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 
         case BT_VND_OP_USERIAL_OPEN:
             {
-                ALOGD("mrvl ::BT_VND_OP_USERIAL_OPEN ");
+                BTVNDDBG("mrvl ::BT_VND_OP_USERIAL_OPEN ");
                 int (*fd_array)[] = (int (*)[]) param;
                 int fd,idx;
                 fd = userial_vendor_open((tUSERIAL_CFG *) &userial_init_cfg);
@@ -348,29 +359,36 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 
         case BT_VND_OP_USERIAL_CLOSE:
             {
-                ALOGD("mrvl ::BT_VND_OP_USERIAL_CLOSE ");
+                BTVNDDBG("mrvl ::BT_VND_OP_USERIAL_CLOSE ");
                 userial_vendor_close();
             }
             break;
 
         case BT_VND_OP_GET_LPM_IDLE_TIMEOUT:
-            ALOGD("mrvl ::BT_VND_OP_GET_LPM_IDLE_TIMEOUT (timeout_ms = 3000;)");
-            uint32_t *timeout_ms = (uint32_t *) param;
-            *timeout_ms = 3000;
+			{
+	            uint32_t *timeout_ms = (uint32_t *) param;
+	            *timeout_ms = hw_lpm_get_idle_timeout();
+	            BTVNDDBG("mrvl ::BT_VND_OP_GET_LPM_IDLE_TIMEOUT=%dms",*timeout_ms);
+        	}
             break;
 
         case BT_VND_OP_LPM_SET_MODE:
             {
-                ALOGD("mrvl ::BT_VND_OP_LPM_SET_MODE ()");
-                bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
+                uint8_t *mode = (uint8_t *) param;
+	            BTVNDDBG("mrvl ::BT_VND_OP_LPM_SET_MODE->%d",(int)*mode);
+                retval = hw_lpm_enable(*mode);
             }
             break;
 
         case BT_VND_OP_LPM_WAKE_SET_STATE:
-			{
-				ALOGD("mrvl ::BT_VND_OP_LPM_WAKE_SET_STATE ()");
-				bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
-        	}			
+            {
+                uint8_t *state = (uint8_t *) param;
+                uint8_t wake_assert = (*state == BT_VND_LPM_WAKE_ASSERT) ? \
+                                        TRUE : FALSE;
+	            BTVNDDBG("mrvl ::BT_VND_OP_LPM_WAKE_SET_STATE->%d",(int)*state);
+
+                retval=hw_lpm_set_wake_state(wake_assert);
+            }
             break;
     }
 
@@ -381,7 +399,6 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 static void cleanup( void )
 {
     ALOGD("cleanup");
-	mrvl_bluetooth_driver_uninit();
     upio_cleanup();
     bt_vendor_cbacks = NULL;
 }
