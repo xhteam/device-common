@@ -1,6 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 
-ifneq ($(BOARD_HAVE_BLUETOOTH_MRVL),)
+ifeq ($(BOARD_HAVE_BLUETOOTH_MRVL),true)
 
 include $(CLEAR_VARS)
 
