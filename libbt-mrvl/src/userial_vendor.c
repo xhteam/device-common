@@ -129,29 +129,6 @@ uint8_t userial_to_tcio_baud(uint8_t cfg_baud, uint32_t *baud)
     return TRUE;
 }
 
-#if (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
-/*******************************************************************************
-**
-** Function        userial_ioctl_init_bt_wake
-**
-** Description     helper function to set the open state of the bt_wake if ioctl
-**                  is used. it should not hurt in the rfkill case but it might
-**                  be better to compile it out.
-**
-** Returns         none
-**
-*******************************************************************************/
-void userial_ioctl_init_bt_wake(int fd)
-{
-    uint32_t bt_wake_state;
-
-    /* assert BT_WAKE through ioctl */
-    ioctl(fd, USERIAL_IOCTL_BT_WAKE_ASSERT, NULL);
-    ioctl(fd, USERIAL_IOCTL_BT_WAKE_GET_ST, &bt_wake_state);
-    VNDUSERIALDBG("userial_ioctl_init_bt_wake read back BT_WAKE state=%i", \
-               bt_wake_state);
-}
-#endif // (BT_WAKE_VIA_USERIAL_IOCTL==TRUE)
 
 
 /*****************************************************************************
@@ -273,7 +250,6 @@ int userial_vendor_open(tUSERIAL_CFG *p_cfg)
 		if ((vnd_userial.fd = open(vnd_userial.port_name, O_RDWR)) < 0)
 		{
 			ALOGE("userial vendor open: unable to open %s", vnd_userial.port_name);
-			return -1;
 		}
 	}
 

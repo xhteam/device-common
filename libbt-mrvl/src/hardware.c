@@ -43,7 +43,6 @@
 #include "bt_vendor_mrvl.h"
 #include "userial.h"
 #include "userial_vendor.h"
-#include "upio.h"
 
 /******************************************************************************
 **  Constants & Macros
@@ -158,10 +157,16 @@ static int hw_set_config(const char* config,int value){
 int hw_lpm_enable(uint8_t turn_on)
 {
 	int ret=0;
+	#if 0
 	ret = hw_set_config("psmode",(BT_VND_LPM_ENABLE==turn_on)?1:0);
 	ret = hw_set_config("pscmd",1);
 	if (bt_vendor_cbacks)
         bt_vendor_cbacks->lpm_cb((ret<0)?BT_VND_OP_RESULT_FAIL:BT_VND_OP_RESULT_SUCCESS);
+	#else
+	if (bt_vendor_cbacks)
+        bt_vendor_cbacks->lpm_cb(BT_VND_OP_RESULT_SUCCESS);
+	
+	#endif
 
     return ret;
 }

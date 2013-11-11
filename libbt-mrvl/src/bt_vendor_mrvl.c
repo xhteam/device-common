@@ -34,11 +34,10 @@
 #include "cutils/properties.h"
 #include "bt_vendor_mrvl.h"
 #include "userial_vendor.h"
-#include "upio.h"
 #ifdef MRVL_WIRELESS_DAEMON_API
 #include "marvell_wireless.h"
 #endif
-
+#define BTVND_DBG TRUE
 #ifndef BTVND_DBG
 #define BTVND_DBG FALSE
 #endif
@@ -190,7 +189,6 @@ static int is_bluetooth_driver_loaded() {
 }
 
 static int mrvl_bluetooth_driver_uninit(void){
-    usleep(200000); /* allow to finish interface down */
 #ifdef MRVL_WIRELESS_DAEMON_API
 	return bluetooth_disable();
 #elif  defined(BLUETOOTH_DRIVER_MODULE_PATH)
@@ -278,8 +276,6 @@ static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr)
 
     userial_vendor_init();
 	
-    upio_init();
-
     vnd_load_conf(VENDOR_LIB_CONF_FILE);
 
     /* store reference to user callbacks */
@@ -287,8 +283,7 @@ static int init(const bt_vendor_callbacks_t* p_cb, unsigned char *local_bdaddr)
 
     /* This is handed over from the stack */
     memcpy(vnd_local_bd_addr, local_bdaddr, 6);
-
-
+	
     return 0;
 }
 
@@ -304,17 +299,19 @@ static int op(bt_vendor_opcode_t opcode, void *param)
     {
         case BT_VND_OP_POWER_CTRL:
             {
+				int ret;
                 BTVNDDBG("mrvl ::BT_VND_OP_POWER_CTRL");
                 int *state = (int *) param;
 				if (*state == BT_VND_PWR_OFF){
-                    BTVNDDBG("[//]mrvl UPIO_BT_POWER_OFF");
-					mrvl_bluetooth_driver_uninit();
-					upio_set_bluetooth_power(UPIO_BT_POWER_OFF);
+                    BTVNDDBG("[//]mrvl BT_VND_PWR_OFF");
+					ret = mrvl_bluetooth_driver_uninit();
 				}
                 else if (*state == BT_VND_PWR_ON){
-                    BTVNDDBG("[//]mrvl UPIO_BT_POWER_ON");
-					upio_set_bluetooth_power(UPIO_BT_POWER_ON);
-					mrvl_bluetooth_driver_init();
+                    BTVNDDBG("[//]mrvl BT_VND_PWR_ON");
+					ret = mrvl_bluetooth_driver_init();
+					if(ret){
+						ALOGE("Error to enable bt\n");
+					}
                 }
             }
             break;
@@ -336,7 +333,8 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 
         case BT_VND_OP_SCO_CFG:
             {
-                bt_vendor_cbacks->scocfg_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
+				if(bt_vendor_cbacks)
+					bt_vendor_cbacks->scocfg_cb(BT_VND_OP_RESULT_SUCCESS); //dummy
             }
             break;
 
@@ -346,13 +344,15 @@ static int op(bt_vendor_opcode_t opcode, void *param)
                 int (*fd_array)[] = (int (*)[]) param;
                 int fd,idx;
                 fd = userial_vendor_open((tUSERIAL_CFG *) &userial_init_cfg);
-                if (fd != -1)
+                if (fd > 0)
                 {
                     for (idx=0; idx < CH_MAX; idx++)
                         (*fd_array)[idx] = fd;
 
                     retval = 1;
-                }
+                }else {
+                	retval = -1;
+            	}
 
             }
             break;
@@ -367,7 +367,7 @@ static int op(bt_vendor_opcode_t opcode, void *param)
         case BT_VND_OP_GET_LPM_IDLE_TIMEOUT:
 			{
 	            uint32_t *timeout_ms = (uint32_t *) param;
-	            *timeout_ms = hw_lpm_get_idle_timeout();
+	            //*timeout_ms = hw_lpm_get_idle_timeout();
 	            BTVNDDBG("mrvl ::BT_VND_OP_GET_LPM_IDLE_TIMEOUT=%dms",*timeout_ms);
         	}
             break;
@@ -399,7 +399,6 @@ static int op(bt_vendor_opcode_t opcode, void *param)
 static void cleanup( void )
 {
     ALOGD("cleanup");
-    upio_cleanup();
     bt_vendor_cbacks = NULL;
 }
 

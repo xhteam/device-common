@@ -12,7 +12,6 @@ LOCAL_SRC_FILES := \
         src/bt_vendor_mrvl.c \
         src/hardware.c \
         src/userial_vendor.c \
-        src/upio.c \
         src/conf.c
 
 LOCAL_C_INCLUDES += \
@@ -34,7 +33,7 @@ LOCAL_MODULE_CLASS := SHARED_LIBRARIES
 LOCAL_MODULE_OWNER := marvell
 LOCAL_MODULE_PATH := $(TARGET_OUT_VENDOR_SHARED_LIBRARIES)
 
-include $(LOCAL_PATH)/vnd_buildcfg.mk
+#include $(LOCAL_PATH)/vnd_buildcfg.mk
 
 include $(BUILD_SHARED_LIBRARY)
 
