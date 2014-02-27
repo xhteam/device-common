@@ -19,7 +19,6 @@
 #define BT_VENDOR_MRVL_H
 
 #include "bt_vendor_lib.h"
-#include "userial_vendor.h"
 
 #ifndef FALSE
 #define FALSE  0
