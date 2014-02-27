@@ -386,7 +386,7 @@ int bt_vnd_mrvl_if_op(bt_vendor_opcode_t opcode, void *param)
 	int local_st = 0;
 	int retry=20;
 
-	ALOGD("opcode = %d", opcode);
+	//ALOGD("opcode = %d", opcode);
 	switch (opcode) {
 	case BT_VND_OP_POWER_CTRL:
 		power_state = (int *)param;
